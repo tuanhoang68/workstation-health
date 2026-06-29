@@ -1,0 +1,17 @@
+# JetBrains IDE (cấu hình máy/cá nhân)
+.idea/
+
+# Specs + định danh máy THẬT — chỉ giữ local (kiểu .env).
+# Bản công khai docs/machine-specs.md là cấu hình máy mồi.
+docs/machine-specs.local.md
+
+# Health runs thật = trạng thái cá nhân của máy → KHÔNG đẩy lên public.
+# Chỉ commit thư mục demo đã làm sạch ở dưới.
+health/*
+!health/demo/
+
+# Rác hệ điều hành / editor
+.DS_Store
+*~
+*.swp
+*.swo
