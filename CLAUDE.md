@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A workspace for monitoring and performance-tuning a **Lenovo ThinkBook 14+ G6** (Intel Core Ultra 5 125H, 16GB LPDDR5x, 512GB NVMe, Ubuntu 24.04 — the user's primary Go dev machine). All changes require measured before/after evidence and must be reversible.
+A workspace for monitoring and performance-tuning an **HP Slim Desktop S01-pF2xxx** (Intel Core i3-12100, 16GB RAM, ~238GB NVMe, Ubuntu 22.04 LTS — the user's primary Go dev machine). All changes require measured before/after evidence and must be reversible.
 
 ## Key commands
 
@@ -56,24 +56,24 @@ cp -r _templates/optimization health/<run-dir>/optimization
 2. **One step at a time with checkpoints.** Apply one tier → measure → report → wait for user approval before proceeding.
 3. **All claims need numbers.** "Faster/better" requires actual before/after measurements from `bench.sh` or `/proc` snapshots.
 4. **Every tweak must have `--rollback`.** No irreversible changes without explicit user agreement.
-5. **Ignore battery health.** The battery is intentionally degraded (~35% health); machine runs plugged in. Do not flag or optimize for battery.
+5. **Ignore battery.** This is a desktop machine with no battery. Pin 🔴 in health-check output is expected and meaningless — never flag it.
 
-## Current baseline (2026-06-28, post Tier 1–5)
+## Current baseline (2026-07-15, post first fix)
 
 | Setting | Value | Mechanism |
 |---|---|---|
-| zram | zstd, ~8GB (PERCENT=50), prio 100 | `/etc/default/zramswap` + `zramswap.service` |
+| zram | lz4, ~7.7GB (PERCENT=50), prio 100 | `/etc/default/zramswap` + `zramswap.service` |
 | swappiness | 180 | `/etc/sysctl.d/99-workstation-ram.conf` |
 | vfs_cache_pressure | 50 | same file |
 | dirty_ratio / dirty_background_ratio | 10 / 5 | same file |
 | inotify max_user_watches | 524288 | `/etc/sysctl.d/99-workstation-ide.conf` |
-| Mount `/` | noatime | `/etc/fstab` (backup: `/etc/fstab.bak-tier3b`) |
-| Power profile | performance (persistent) | user service `set-performance-profile` |
-| GoLand heap | Xmx 2560m | `~/.config/JetBrains/GoLand2026.1/goland64.vmoptions` |
-| GOCACHE | `~/.cache/go-build` | **never delete** — warm cache = ~4s build vs 46s cold |
-| Weekly health timer | `health-check.timer` Mon 10:00, Persistent | `systemctl --user` |
+| Mount `/` | noatime (live) | fstab **belum ditulis** — pending 1 command (see machine-optimization.md) |
+| Power profile | performance | `powerprofilesctl` (persistence after reboot unconfirmed) |
+| GOCACHE | `~/.cache/go-build` | **never delete** — warm cache critical |
+| GoLand heap | default (no override) | no `goland64.vmoptions` yet |
+| Weekly health timer | **not set up** | pending |
 
-Disk baseline: ~49% used. All 10/10 verify checks pass after last reboot.
+Disk baseline: ~81% (floor — large user data directory ~51G). Pin 🔴 = normal (desktop, no battery).
 
 ## Key reference files
 

@@ -1,58 +1,65 @@
-# Doc sống — Cấu hình chuẩn & Nhật ký tweak (ThinkBook 14+ G6)
+# Doc sống — Cấu hình chuẩn & Nhật ký tweak
 
 > Nơi tra cứu: **đã đổi gì, giá trị chuẩn, cách hoàn tác**. Cập nhật mỗi khi áp/gỡ tweak.
 > Doc XUYÊN ĐỢT (cấu hình chuẩn + rollback mọi tweak). Bằng chứng từng đợt: `health/<lần>/optimization/`
-> (vd đợt gần nhất `health/2026-06-28-machine-tuning/optimization/` — tracker.md + steps/).
 
-## Cấu hình chuẩn hiện hành (sau Tier 1–5, 2026-06-28)
+## Cấu hình chuẩn hiện hành (sau fix 2026-07-15)
 
 | Hạng mục | Giá trị chuẩn | File/cơ chế |
 |---|---|---|
-| zram | zstd, ~8GB (PERCENT=50), prio 100 | `/etc/default/zramswap` + service `zramswap` |
+| zram | lz4, ~7.7GB (PERCENT=50), prio 100 | `/etc/default/zramswap` + service `zramswap` |
 | swappiness | 180 | `/etc/sysctl.d/99-workstation-ram.conf` |
 | vfs_cache_pressure | 50 | nt |
 | dirty_ratio / background | 10 / 5 | nt |
 | OOM protection | systemd-oomd (KHÔNG earlyoom) | sẵn có |
 | inotify watches / instances | 524288 / 256 | `/etc/sysctl.d/99-workstation-ide.conf` |
-| GoLand heap Xmx / Xms | 2560m / 256m | `~/.config/JetBrains/GoLand2026.1/goland64.vmoptions` |
-| Mount `/` | `noatime` | `/etc/fstab` |
-| fstrim | timer enabled | systemd |
-| Power profile | performance (dính sau boot) | user service `set-performance-profile` |
+| Mount `/` | `noatime` (live via remount) | `/etc/fstab` ⚠️ **chưa ghi — xem mục Việc còn lại** |
+| fstrim | timer enabled/active | systemd |
+| Power profile | performance | `powerprofilesctl` _(cơ chế dính sau reboot chưa xác nhận — không có user service)_ |
 | GOCACHE | `~/.cache/go-build` — GIỮ ấm, đừng xoá | — |
+| GoLand Xmx | mặc định (chưa override) | không có `goland64.vmoptions` |
+| Health check timer | **chưa bật** | — |
 
 ## Nhật ký tweak + lệnh rollback
 
-### Tier 1 — RAM & Swap (✅ 2026-06-28)
-- **zram** — kết quả: ghi SSD khi swap 3.1GB→3MB, nén 4.6×, PSI stall 37%→9%.
-  - Rollback: `sudo bash tweaks/tier1a-zram.sh --rollback`
-- **sysctl** (swappiness 180, vfs 50, dirty 10/5).
-  - Rollback: `sudo bash tweaks/tier1b-sysctl.sh --rollback`
-- **earlyoom**: KHÔNG cài (dùng systemd-oomd sẵn có).
+### Fix 2026-07-15 — Restore standard config (từ health check `2026-07-15_085515-manual-claude`)
 
-### Tier 2 — IDE (✅ 2026-06-28)
-- **inotify** 524288/256. Rollback: `sudo bash tweaks/tier2a-inotify.sh --rollback`
-- **GoLand heap** 2048→2560 (file vmoptions custom; bỏ dòng debug go-indexing).
-  - Rollback: xoá `~/.config/JetBrains/GoLand2026.1/goland64.vmoptions` rồi restart GoLand.
-- **Exclude index**: để user tự Mark-as-Excluded trong IDE khi cần (không script).
+**Vấn đề phát hiện:** swappiness=10 · inotify=65536 · noatime mất · disk 88%.
 
-### Tier 3 — Disk (✅ 2026-06-28)
-- **Dọn ~35G** (65%→49%). Đã chừa `go-build` + `GoLand2026.1`. (Không rollback — đã xoá.)
-- **noatime** (fstab). Rollback: `sudo bash tweaks/tier3b-noatime.sh --rollback` (backup `/etc/fstab.bak-tier3b`).
-- **fstrim**: trim 126GiB (sẵn enabled).
+**Kết quả disk cleanup:**
+| Nguồn | Trước | Sau |
+|---|---|---|
+| Chrome cache | 3.0G | 0 |
+| JetBrains 2025.2+2025.3 (cũ) | 3.3G | 0 |
+| npm cache | 5.4G | 0 |
+| thumbnails + mesa shader | ~120M | 0 |
+| journal logs | 3.9G | 200M |
+| apt archives | 825M | 0 |
+| snap revisions cũ | ~(nhiều) | 0 |
+| **Tổng lấy lại** | **~16G** | |
+| **Disk sau** | 88% (29G free) | **81% (45G free)** |
 
-### Tier 4 — Full power (✅ 2026-06-28)
-- **Profile performance dính sau reboot** — user service.
-  - Rollback: `systemctl --user disable --now set-performance-profile.service && powerprofilesctl set balanced`
-- governor=performance & autostart: KHÔNG làm (có lý do — xem tracker).
-- **Bảo trì vật lý: ✅ coi như DONE** (user xác nhận) — vệ sinh quạt + thay keo tản nhiệt.
+> Disk 81% là sàn thực tế: thư mục dữ liệu lớn người dùng chiếm ~51G (không dọn được).
 
-### Tier 5 — Build Go (✅ điều tra 2026-06-28)
-- Kết luận: warm build ~4s đã nhanh; cold 46–68s là CPU-bound compile-deps (không sửa bằng config).
-  Đòn bẩy duy nhất = **giữ GOCACHE ấm** (đã bảo vệ ở Tier 3). cgo/tmpfs/GOAMD64 đo rồi, vô ích.
-- **monorepo: BỎ khỏi phạm vi** (user quyết không tối ưu monorepo). *(Ghi chú kỹ thuật để tham khảo, KHÔNG phải việc cần làm: nếu sau này build monorepo bị fail sonic với go1.26 thì đặt `GOTOOLCHAIN=go1.22.7`.)*
+**Rollback từng tweak:**
+- sysctl (swappiness): `sudo bash tweaks/tier1b-sysctl.sh --rollback`
+- inotify: `sudo bash tweaks/tier2a-inotify.sh --rollback`
+- noatime: `sudo bash tweaks/tier3b-noatime.sh --rollback`
+- disk cleanup: không rollback được (cache, an toàn)
 
 ## Việc còn lại / tùy chọn
-- [x] Reboot tổng + `bin/verify-after-reboot.sh` → **10/10 ĐẠT** (mọi tweak dính, GoLand Xmx 2560, sustained 3245MHz). Đợt 2026-06-28 HOÀN TẤT.
-- [x] **systemd timer health-check hằng tuần ĐÃ BẬT** (user timer `health-check.timer`, `OnCalendar=Mon 10:00`, Persistent). Mỗi tuần tự sinh `health/<ts>-weekly/report.md`. Quản lý: `systemctl --user {status,disable,start} health-check.timer` · xem lịch `systemctl --user list-timers`.
-- [ ] (tùy chọn) đo công suất gói (W) bằng `sudo turbostat`.
-- [x] (vật lý) vệ sinh quạt + thay keo — **coi như done** (user xác nhận).
+
+- [ ] **⚠️ fstab noatime chưa ghi** — noatime đang live nhưng sẽ mất sau reboot. Cần chạy:
+  ```bash
+  sudo sed -i 's|ext4    errors=remount-ro|ext4    errors=remount-ro,noatime|' /etc/fstab
+  grep ' / ' /etc/fstab   # verify
+  ```
+- [ ] **Power profile sau reboot** — hiện tại `performance` nhưng không có user service `set-performance-profile`. Cần kiểm tra sau reboot xem có giữ không. Nếu không: tạo user service tương tự như tweaks gốc.
+- [ ] **Health-check timer** — chưa bật. Để bật hàng tuần:
+  ```bash
+  # tạo ~/.config/systemd/user/health-check.service + health-check.timer rồi:
+  systemctl --user enable --now health-check.timer
+  ```
+- [ ] (tùy chọn) Override GoLand heap: nếu GoLand thấy ì/OOM, tạo `~/.config/JetBrains/GoLand2026.1/goland64.vmoptions` với `-Xmx2560m`.
+- [ ] (tùy chọn) Xác nhận loại RAM bằng `sudo bash bin/probe-specs.sh`.
+- [ ] Verify sau reboot tự nhiên tiếp theo: `bin/verify-after-reboot.sh`.

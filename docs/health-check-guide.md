@@ -4,8 +4,8 @@
 > - 👤 **Người dùng (bạn):** biết khi nào chạy, đọc report thế nào, làm gì khi có cờ đỏ.
 > - 🤖 **Claude (session sau):** đọc mục "AI onboarding" để nắm ngay bối cảnh & quy tắc.
 >
-> Máy: **ThinkBook 14+ G6** · Core Ultra 5 125H · 16GB LPDDR5x · 512GB NVMe · Ubuntu 24.04 / kernel 6.x.
-> Baseline chuẩn: **2026-06-28** (sau tối ưu Tier 1–5).
+> Máy: **HP Slim Desktop S01-pF2xxx** · i3-12100 · 16GB · ~238GB NVMe · Ubuntu 22.04 / kernel 6.8.x.
+> Baseline chuẩn: **2026-07-15** (sau fix lần đầu). Pin 🔴 = bình thường — desktop, không có pin.
 
 ---
 
@@ -104,14 +104,16 @@ bin/health-check.sh [nhãn]        # vd: bin/health-check.sh sau-update-kernel
 
 ## 6. 🤖 AI onboarding — đọc nếu bạn là Claude trong session mới
 
-**Đây là gì:** workspace quản lý sức khỏe & tối ưu chiếc ThinkBook 14+ G6 ("máy kiếm tiền" làm Go) của user.
+**Đây là gì:** workspace quản lý sức khỏe & tối ưu máy dev Go **HP Slim Desktop S01-pF2xxx** của user.
+
+**Phần cứng chốt nhanh:** i3-12100 (4C/8T, max 4.3GHz) · 16GB RAM · 238GB NVMe · Intel UHD 730 · Ubuntu 22.04 LTS · kernel 6.8.x · **desktop — không có pin** (Pin 🔴 trong health-check là bình thường, bỏ qua).
 
 **Quy tắc làm việc với user này (BẮT BUỘC):**
 1. **Từng bước nhỏ, có checkpoint** — làm 1 phần → đo → trình → chờ user duyệt GIỮ/ROLLBACK. Không gộp nhiều bước rủi ro.
 2. **Bằng chứng thực nghiệm, không lý thuyết** — mọi tuyên bố "nhanh hơn/tốt hơn" phải có số đo before/after thật.
-3. **Máy KHÔNG có sudo không mật khẩu** → KHÔNG tự chạy `sudo`. Soạn script trong `tweaks/` cho user tự chạy `sudo bash tweaks/...`. Việc đọc/đo thì tự làm.
+3. **Máy KHÔNG có sudo không mật khẩu** → KHÔNG tự chạy `sudo`. Soạn script cho user tự chạy `sudo bash <script>`. Việc đọc/đo thì tự làm.
 4. **Mọi tweak phải rollback được** — script có cờ `--rollback`.
-5. Pin: **bỏ qua** (chai 35%, luôn cắm sạc). Ưu tiên hiệu năng tối đa.
+5. Pin: **bỏ qua hoàn toàn** — desktop, không có pin, luôn có điện.
 
 **Bản đồ nhanh:**
 - `bin/health-check.sh` — quét + tự đánh giá (chạy trước/sau mọi thay đổi).
@@ -120,12 +122,15 @@ bin/health-check.sh [nhãn]        # vd: bin/health-check.sh sau-update-kernel
 - `bin/verify-after-reboot.sh` — kiểm mọi tweak có dính sau reboot.
 - `bin/probe-specs.sh` — (sudo) lấy thông số phần cứng chi tiết.
 - `docs/machine-specs.md` — **phần cứng BẤT BIẾN** (CPU/RAM/SSD/màn/mạng…) — đọc để khỏi dò lại phần cứng.
-- `docs/machine-optimization.md` — doc sống xuyên đợt: cấu hình chuẩn + nhật ký tweak + lệnh rollback.
-- `docs/knowledge/` — kiến thức tham khảo tích lũy (vd `scheduling-cron-vs-systemd-timer.md`).
-- `health/<lần>/report.md` — health check từng lần · `health/<lần>/optimization/` — đợt tối ưu sinh từ lần đó (design.md, tracker.md, steps/).
+- `docs/machine-optimization.md` — doc sống xuyên đợt: cấu hình chuẩn + nhật ký tweak + lệnh rollback + việc còn lại.
+- `docs/knowledge/` — kiến thức tham khảo tích lũy.
+- `health/<lần>/report.md` — health check từng lần · `health/<lần>/optimization/` — đợt tối ưu sinh từ lần đó.
 - `_templates/` — khuôn health-run + optimization (copy ra khi cần).
-- Đợt gần nhất: `health/2026-06-28-machine-tuning/` (design+tracker+steps đầy đủ).
 
-**Đã tối ưu (2026-06-28), trạng thái chuẩn để so:** zram zstd 8G prio100 (nén ~4.6×) · swappiness 180 · vfs_cache_pressure 50 · dirty 10/5 · inotify 524288 · GoLand Xmx 2560 · noatime · profile performance (user service `set-performance-profile`) · disk ~49% · go-build cache được bảo vệ. systemd-oomd lo OOM (không cài earlyoom).
+**Trạng thái chuẩn (sau fix 2026-07-15):** zram zstd 7.7G prio100 · swappiness 180 · vfs_cache_pressure 50 · dirty 10/5 · inotify 524288 · noatime (fstab + live) · profile performance · disk ~81% (sàn thực tế, xem machine-optimization.md) · go-build cache bảo vệ · health timer bật. systemd-oomd lo OOM.
 
-**Khi user nhờ "health check lại":** chạy `bin/health-check.sh`, đọc verdict, nếu có 🟡/🔴 thì điều tra theo bảng ngưỡng mục 4, đề xuất fix (soạn script sudo nếu cần), cập nhật report. Đừng tự ý đổi cấu hình chuẩn nếu không có cờ đỏ.
+**Việc còn pending:** power profile sau reboot chưa verify — xem `docs/machine-optimization.md § Việc còn lại`.
+
+**Disk 81% là bình thường** cho máy này — thư mục dữ liệu lớn người dùng ~51G. Chỉ cảnh báo nếu vượt 88%.
+
+**Khi user nhờ "health check lại":** chạy `bin/health-check.sh`, đọc verdict, nếu có 🟡/🔴 thì điều tra theo bảng ngưỡng mục 4, đề xuất fix (soạn script sudo nếu cần). Đừng tự ý đổi cấu hình chuẩn nếu không có cờ đỏ.
